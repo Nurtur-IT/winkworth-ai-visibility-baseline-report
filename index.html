@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Winkworth — AI Visibility Benchmark Report</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* ── Exact Winkworth brand palette (from winkworth.co.uk screenshot) ── */
+    --navy:         #1E2A52;   /* Logo bg, header, footer — confirmed from screenshot */
+    --navy-dark:    #161f3d;   /* Deeper navy — footer gradient / pressed */
+    --navy-mid:     #2d3f7a;   /* Mid navy tint fills */
+    --navy-light:   #e6e9f3;   /* Navy row highlight / tint bg */
+    --navy-xlight:  #f2f3f9;   /* Very pale navy */
+
+    --gold:         #B8922A;   /* "Join MyWinkworth" / "Book Valuation" — warm gold */
+    --gold-dark:    #9a7620;   /* Gold hover / pressed */
+    --gold-light:   #f5ecd4;   /* Gold tint background */
+    --gold-xlight:  #faf5e8;   /* Very pale gold */
+
+    --ink:          #1C1C1C;
+    --ink-2:        #333333;
+    --ink-3:        #666666;
+    --ink-4:        #999999;
+
+    --white:        #ffffff;
+    --off-white:    #f7f7f7;
+    --surface:      #efefef;
+    --border:       rgba(30,42,82,0.12);
+
+    --red:          #b83232;
+    --red-light:    #fceaea;
+    --green:        #1a6b3c;
+    --green-light:  #e0f2e9;
+    --amber:        #b87820;
+    --amber-light:  #fdf0d8;
+  }
+
+  html { font-size: 16px; }
+  body { font-family: 'Outfit', sans-serif; background: var(--off-white); color: var(--ink); line-height: 1.6; min-height: 100vh; }
+
+  /* ── SITE NAV ── */
+  .site-nav {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: stretch;
+    height: 58px;
+  }
+  .nav-logo {
+    background: var(--navy);
+    color: white;
+    font-family: 'DM Serif Display', serif;
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    padding: 0 24px;
+    display: flex; align-items: center;
+    flex-shrink: 0;
+    margin-right: 36px;
+    border: 3px solid rgba(255,255,255,0.18);
+    margin: 8px 28px 8px 16px;
+    border-radius: 2px;
+  }
+  .nav-links { display: flex; align-items: center; gap: 30px; flex: 1; }
+  .nav-links span { font-size: 14px; color: var(--ink-2); }
+  .nav-actions { display: flex; align-items: center; gap: 10px; padding-right: 20px; }
+  .btn-gold { background: var(--gold); color: white; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600; padding: 10px 20px; border: none; cursor: default; white-space: nowrap; letter-spacing: 0.01em; }
+  .btn-outline { border: 1.5px solid var(--ink-2); background: none; color: var(--ink); font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; padding: 9px 18px; white-space: nowrap; cursor: default; }
+
+  /* ── REPORT HEADER ── */
+  .report-header {
+    background: var(--navy);
+    color: white;
+    padding: 52px 64px 44px;
+    position: relative;
+    overflow: hidden;
+  }
+  .report-header::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 360px; height: 360px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(184,146,42,0.25);
+    pointer-events: none;
+  }
+  .report-header::after {
+    content: '';
+    position: absolute; top: 10px; right: 10px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    border: 1px solid rgba(184,146,42,0.12);
+    pointer-events: none;
+  }
+  .header-inner { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; }
+  .report-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .report-eyebrow::before { content: ''; display: inline-block; width: 24px; height: 1.5px; background: var(--gold); }
+  .report-title { font-family: 'DM Serif Display', serif; font-size: 50px; line-height: 1.05; color: white; margin-bottom: 10px; }
+  .report-title em { color: var(--gold); font-style: italic; }
+  .report-sub { font-size: 14px; color: rgba(255,255,255,0.46); font-weight: 300; max-width: 540px; margin-top: 8px; }
+  .header-meta { text-align: right; flex-shrink: 0; }
+  .meta-item { font-family: 'DM Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.35); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; }
+  .meta-value { font-size: 13px; color: rgba(255,255,255,0.72); font-weight: 500; margin-bottom: 14px; }
+
+  /* ── ALERT ── */
+  .alert-banner {
+    background: var(--red);
+    color: white; padding: 14px 64px;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 13px; font-weight: 500;
+  }
+  .alert-icon { width: 20px; height: 20px; border: 1.5px solid rgba(255,255,255,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+
+  /* ── LAYOUT ── */
+  .main { padding: 48px 64px; max-width: 1280px; margin: 0 auto; }
+  section { margin-bottom: 56px; }
+  .section-label {
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
+
+  /* ── KPI STRIP ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .kpi-cell { padding: 20px 16px; border-right: 1px solid var(--border); background: var(--white); position: relative; }
+  .kpi-cell:last-child { border-right: none; }
+  .kpi-cell.kc-navy   { background: var(--navy); }
+  .kpi-cell.kc-red    { background: var(--red-light); }
+  .kpi-cell.kc-gold   { background: var(--gold-xlight); }
+  .kpi-plat { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 8px; }
+  .kc-navy .kpi-plat  { color: rgba(255,255,255,0.35); }
+  .kc-red  .kpi-plat  { color: var(--red); }
+  .kc-gold .kpi-plat  { color: var(--gold-dark); }
+  .kpi-num { font-family: 'DM Serif Display', serif; font-size: 34px; color: var(--ink); line-height: 1; margin-bottom: 6px; }
+  .kc-navy .kpi-num   { color: var(--gold); }
+  .kc-red  .kpi-num   { color: var(--red); }
+  .kc-gold .kpi-num   { color: var(--gold-dark); }
+  .kpi-sub { font-size: 11px; color: var(--ink-3); font-weight: 300; line-height: 1.4; }
+  .kc-navy .kpi-sub   { color: rgba(255,255,255,0.42); }
+  .kc-red  .kpi-sub   { color: var(--red); opacity:.7; }
+  .rank-tag { position: absolute; top: 12px; right: 12px; font-family: 'DM Mono', monospace; font-size: 9px; padding: 2px 6px; border-radius: 2px; }
+  .rt-last   { background: var(--red-light); color: var(--red); }
+  .rt-ok     { background: var(--gold-light); color: var(--gold-dark); }
+  .rt-leader { background: var(--green-light); color: var(--green); }
+
+  /* ── DATA TABLE ── */
+  .data-table-wrap { border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--navy); border-bottom: 3px solid var(--gold); }
+  thead th {
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: rgba(255,255,255,0.44);
+    padding: 13px 16px; text-align: right; font-weight: 400;
+  }
+  thead th:first-child { text-align: left; color: rgba(255,255,255,0.72); }
+  tbody tr { border-bottom: 1px solid var(--border); background: var(--white); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:not(.wrow):hover { background: var(--navy-xlight); }
+  tbody tr.wrow { background: var(--navy-light); }
+  tbody tr.top-row { background: var(--gold-xlight); }
+  tbody td { padding: 13px 16px; font-size: 13px; text-align: right; color: var(--ink-2); }
+  tbody td:first-child { text-align: left; font-weight: 500; color: var(--ink); font-size: 14px; }
+  tbody tr.wrow td { font-weight: 700; }
+  tbody tr.wrow td:first-child { color: var(--navy); }
+  tbody tr.top-row td:first-child { color: var(--gold-dark); font-weight: 600; }
+
+  .bar-wrap { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .bar-num { min-width: 36px; text-align: right; font-family: 'DM Mono', monospace; font-size: 13px; }
+  .bar-track { width: 70px; height: 4px; background: var(--surface); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; background: var(--ink-4); }
+  .wrow .bar-fill  { background: var(--gold); }
+  .top-row .bar-fill { background: var(--gold-dark); opacity:.6; }
+  .total-col { font-family: 'DM Serif Display', serif; font-size: 17px; }
+  .wrow .total-col { color: var(--navy); }
+  .top-row .total-col { color: var(--gold-dark); }
+
+  /* ── ANALYSIS GRID ── */
+  .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: 2px; padding: 26px; }
+  .card h3 { font-family: 'DM Serif Display', serif; font-size: 19px; color: var(--navy); margin-bottom: 4px; }
+  .card .csub { font-size: 12px; color: var(--ink-3); font-weight: 300; margin-bottom: 22px; }
+
+  .p-rows { display: flex; flex-direction: column; gap: 11px; }
+  .p-row { display: flex; align-items: center; gap: 12px; }
+  .p-name { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--ink-3); width: 90px; flex-shrink: 0; }
+  .p-track { flex: 1; height: 7px; background: var(--surface); border-radius: 2px; overflow: hidden; }
+  .p-fill { height: 100%; border-radius: 2px; }
+  .p-num { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink-2); width: 32px; text-align: right; flex-shrink: 0; }
+  .f-gold  { background: var(--gold); }
+  .f-navy  { background: var(--navy-mid); }
+  .f-grey  { background: var(--ink-4); }
+  .f-red   { background: var(--red); }
+
+  .s-rows { display: flex; flex-direction: column; gap: 10px; }
+  .s-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .s-label { width: 110px; color: var(--ink-2); flex-shrink: 0; font-size: 13px; }
+  .s-label.wl { color: var(--navy); font-weight: 700; }
+  .s-track { flex: 1; height: 22px; background: var(--surface); border-radius: 2px; overflow: hidden; }
+  .s-fill { height: 100%; display: flex; align-items: center; padding-left: 10px; font-size: 11px; font-weight: 600; color: white; font-family: 'DM Mono', monospace; }
+
+  /* ── PLATFORM PERF ── */
+  .pp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .pp-cell { background: var(--white); padding: 22px; }
+  .pp-cell.pp-danger { background: var(--red-light); }
+  .pp-cell.pp-bright { background: var(--gold-xlight); }
+  .pp-plat { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px; }
+  .pp-danger .pp-plat { color: var(--red); }
+  .pp-bright .pp-plat { color: var(--gold-dark); }
+  .pp-num { font-family: 'DM Serif Display', serif; font-size: 34px; color: var(--navy); line-height: 1; margin-bottom: 4px; }
+  .pp-danger .pp-num  { color: var(--red); }
+  .pp-bright .pp-num  { color: var(--gold-dark); }
+  .pp-rank { font-size: 12px; color: var(--ink-3); margin-bottom: 10px; }
+  .pp-rank strong { color: var(--ink); }
+  .pp-danger .pp-rank { color: var(--red); opacity:.85; }
+  .pp-bright .pp-rank { color: var(--gold-dark); }
+  .pp-note { font-size: 12px; color: var(--ink-3); font-weight: 300; line-height: 1.6; }
+  .pp-danger .pp-note { color: var(--red); opacity:.75; }
+  .pp-bright .pp-note { color: var(--gold-dark); opacity:.85; }
+
+  /* ── INSIGHTS ── */
+  .insights { display: flex; flex-direction: column; gap: 12px; }
+  .ins-row { display: flex; align-items: flex-start; gap: 18px; padding: 18px 22px; background: var(--white); border: 1px solid var(--border); border-radius: 2px; border-left: 3px solid var(--red); }
+  .ins-row.ins-warn { border-left-color: var(--amber); }
+  .ins-row.ins-good { border-left-color: var(--green); }
+  .ins-n { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--surface); line-height: 1; flex-shrink: 0; width: 28px; }
+  .ins-t { font-size: 14px; color: var(--ink-2); line-height: 1.65; }
+  .ins-t strong { color: var(--ink); font-weight: 600; }
+
+  /* ── RECS ── */
+  .rec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .rec-card { padding: 22px; border: 1px solid var(--border); border-radius: 2px; background: var(--white); position: relative; overflow: hidden; }
+  .rec-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .rc-p1::before { background: var(--red); }
+  .rc-p2::before { background: var(--gold); }
+  .rc-p3::before { background: var(--green); }
+  .rec-pri { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+  .rc-p1 .rec-pri { color: var(--red); }
+  .rc-p2 .rec-pri { color: var(--gold-dark); }
+  .rc-p3 .rec-pri { color: var(--green); }
+  .rec-title { font-weight: 600; font-size: 14px; color: var(--navy); margin-bottom: 8px; line-height: 1.4; }
+  .rec-desc { font-size: 13px; color: var(--ink-3); font-weight: 300; line-height: 1.65; }
+
+  /* ── PALETTE ── */
+  .sw-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .sw-card { border: 1px solid var(--border); border-radius: 2px; overflow: hidden; background: var(--white); }
+  .sw-block { height: 72px; }
+  .sw-info { padding: 14px; }
+  .sw-role { display: inline-block; font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; margin-bottom: 8px; }
+  .sr-p  { background: var(--navy-light);  color: var(--navy); }
+  .sr-s  { background: var(--gold-light);  color: var(--gold-dark); }
+  .sr-n  { background: var(--surface);     color: var(--ink-3); }
+  .sw-name { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 3px; }
+  .sw-hex  { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--navy); margin-bottom: 2px; }
+  .sw-rgb  { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--ink-4); }
+  .sw-use  { font-size: 11px; color: var(--ink-3); margin-top: 7px; line-height: 1.5; }
+
+  /* ── FOOTER ── */
+  .report-footer {
+    background: var(--navy);
+    color: rgba(255,255,255,0.42);
+    padding: 22px 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; font-family: 'DM Mono', monospace; letter-spacing: 0.04em;
+  }
+  .f-brand { color: white; font-weight: 500; }
+  .f-div   { color: rgba(255,255,255,0.2); margin: 0 8px; }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .main > section { animation: fadeUp 0.45s ease both; }
+  .main > section:nth-child(1) { animation-delay:.04s; }
+  .main > section:nth-child(2) { animation-delay:.10s; }
+  .main > section:nth-child(3) { animation-delay:.16s; }
+  .main > section:nth-child(4) { animation-delay:.22s; }
+  .main > section:nth-child(5) { animation-delay:.28s; }
+  .main > section:nth-child(6) { animation-delay:.34s; }
+  .main > section:nth-child(7) { animation-delay:.40s; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="site-nav">
+  <div class="nav-logo">Winkworth</div>
+   <div class="nav-actions">
+    <div class="btn-gold">Book Valuation</div>
+    <div class="btn-outline">MyWinkworth ♡</div>
+  </div>
+</nav>
+
+<!-- HEADER -->
+<header class="report-header">
+  <div class="header-inner">
+    <div>
+      <div class="report-eyebrow">AI Visibility Baseline Report</div>
+      <h1 class="report-title">AI Presence<br><em>Benchmark</em></h1>
+      <p class="report-sub">Competitive citation analysis across Google AI Overview, ChatGPT, Perplexity, Gemini, Copilot &amp; Grok — 6 competitors tracked</p>
+    </div>
+    <div class="header-meta">
+      <div class="meta-item">Prepared for</div>
+      <div class="meta-value">Winkworth Franchising Ltd</div>
+      <div class="meta-item">Report type</div>
+      <div class="meta-value">Baseline — Q2 2025</div>
+      <div class="meta-item">Classification</div>
+      <div class="meta-value">Confidential</div>
+    </div>
+  </div>
+</header>
+
+<!-- ALERT -->
+<div class="alert-banner">
+  <div class="alert-icon">!</div>
+  <span>Critical finding: Winkworth ranks <strong>last of 7 competitors</strong> across AI platforms — 175 total citations vs Savills' 2,347. Gemini shows zero citations. Immediate GEO optimisation required.</span>
+</div>
+
+<main class="main">
+
+  <!-- 01 KPI STRIP -->
+  <section>
+    <p class="section-label">01 — Winkworth AI citation count by platform</p>
+    <div class="kpi-grid">
+      <div class="kpi-cell kc-navy">
+        <div class="kpi-plat">Total citations</div>
+        <div class="kpi-num">175</div>
+        <div class="kpi-sub">All six platforms combined</div>
+        <span class="rank-tag rt-last">7th of 7</span>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-plat">Google AI Overview</div>
+        <div class="kpi-num">47</div>
+        <div class="kpi-sub">Savills leads: 684</div>
+        <span class="rank-tag rt-last">7th of 7</span>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-plat">ChatGPT</div>
+        <div class="kpi-num">34</div>
+        <div class="kpi-sub">Hamptons leads: 279</div>
+        <span class="rank-tag rt-last">7th of 7</span>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-plat">Perplexity</div>
+        <div class="kpi-num">12</div>
+        <div class="kpi-sub">Foxtons leads: 303</div>
+        <span class="rank-tag rt-last">7th of 7</span>
+      </div>
+      <div class="kpi-cell kc-red">
+        <div class="kpi-plat">Gemini</div>
+        <div class="kpi-num">0</div>
+        <div class="kpi-sub">Zero citations — urgent</div>
+        <span class="rank-tag rt-last">7th of 7</span>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-plat">Copilot</div>
+        <div class="kpi-num">7</div>
+        <div class="kpi-sub">Savills leads: 126</div>
+        <span class="rank-tag rt-last">7th of 7</span>
+      </div>
+      <div class="kpi-cell kc-gold">
+        <div class="kpi-plat">Grok</div>
+        <div class="kpi-num">75</div>
+        <div class="kpi-sub">Best relative platform</div>
+        <span class="rank-tag rt-ok">5th of 7</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 FULL DATA TABLE -->
+  <section>
+    <p class="section-label">02 — Full competitor citation data</p>
+    <div class="data-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Competitor</th>
+            <th>Google AI Overview</th>
+            <th>ChatGPT</th>
+            <th>Perplexity</th>
+            <th>Gemini</th>
+            <th>Copilot</th>
+            <th>Grok</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Max: GAO=684, ChatGPT=279, Perplexity=303, Gemini=235, Copilot=126, Grok=1100 -->
+          <tr class="top-row">
+            <td>Savills</td>
+            <td><div class="bar-wrap"><span class="bar-num">684</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">201</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">0</span><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">235</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">126</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">1.1K</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+            <td class="total-col">2,347</td>
+          </tr>
+          <tr>
+            <td>Foxtons</td>
+            <td><div class="bar-wrap"><span class="bar-num">284</span><div class="bar-track"><div class="bar-fill" style="width:42%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">229</span><div class="bar-track"><div class="bar-fill" style="width:82%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">303</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">26</span><div class="bar-track"><div class="bar-fill" style="width:11%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">46</span><div class="bar-track"><div class="bar-fill" style="width:37%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">350</span><div class="bar-track"><div class="bar-fill" style="width:32%"></div></div></div></td>
+            <td class="total-col">1,238</td>
+          </tr>
+          <tr>
+            <td>Knight Frank</td>
+            <td><div class="bar-wrap"><span class="bar-num">218</span><div class="bar-track"><div class="bar-fill" style="width:32%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">164</span><div class="bar-track"><div class="bar-fill" style="width:59%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">218</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">115</span><div class="bar-track"><div class="bar-fill" style="width:49%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">74</span><div class="bar-track"><div class="bar-fill" style="width:59%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">551</span><div class="bar-track"><div class="bar-fill" style="width:50%"></div></div></div></td>
+            <td class="total-col">1,340</td>
+          </tr>
+          <tr>
+            <td>Hamptons</td>
+            <td><div class="bar-wrap"><span class="bar-num">128</span><div class="bar-track"><div class="bar-fill" style="width:19%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">279</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">95</span><div class="bar-track"><div class="bar-fill" style="width:31%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">80</span><div class="bar-track"><div class="bar-fill" style="width:34%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">49</span><div class="bar-track"><div class="bar-fill" style="width:39%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">259</span><div class="bar-track"><div class="bar-fill" style="width:24%"></div></div></div></td>
+            <td class="total-col">890</td>
+          </tr>
+          <tr>
+            <td>Dexters</td>
+            <td><div class="bar-wrap"><span class="bar-num">21</span><div class="bar-track"><div class="bar-fill" style="width:3%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">52</span><div class="bar-track"><div class="bar-fill" style="width:19%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">22</span><div class="bar-track"><div class="bar-fill" style="width:7%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">14</span><div class="bar-track"><div class="bar-fill" style="width:6%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">12</span><div class="bar-track"><div class="bar-fill" style="width:10%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">51</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div></div></td>
+            <td class="total-col">172</td>
+          </tr>
+          <tr>
+            <td>KFH</td>
+            <td><div class="bar-wrap"><span class="bar-num">23</span><div class="bar-track"><div class="bar-fill" style="width:3%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">101</span><div class="bar-track"><div class="bar-fill" style="width:36%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">92</span><div class="bar-track"><div class="bar-fill" style="width:30%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">39</span><div class="bar-track"><div class="bar-fill" style="width:17%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">1</span><div class="bar-track"><div class="bar-fill" style="width:1%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">58</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div></div></td>
+            <td class="total-col">314</td>
+          </tr>
+          <tr class="wrow">
+            <td>Winkworth</td>
+            <td><div class="bar-wrap"><span class="bar-num">47</span><div class="bar-track"><div class="bar-fill" style="width:7%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">34</span><div class="bar-track"><div class="bar-fill" style="width:12%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">12</span><div class="bar-track"><div class="bar-fill" style="width:4%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">0</span><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">7</span><div class="bar-track"><div class="bar-fill" style="width:6%"></div></div></div></td>
+            <td><div class="bar-wrap"><span class="bar-num">75</span><div class="bar-track"><div class="bar-fill" style="width:7%"></div></div></div></td>
+            <td class="total-col">175</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 03 ANALYSIS -->
+  <section>
+    <p class="section-label">03 — Visibility analysis</p>
+    <div class="analysis-grid">
+      <div class="card">
+        <h3>Winkworth platform breakdown</h3>
+        <p class="csub">Share of Winkworth's 175 total citations by platform</p>
+        <div class="p-rows">
+          <div class="p-row"><div class="p-name">Grok</div><div class="p-track"><div class="p-fill f-navy" style="width:43%"></div></div><div class="p-num">75</div></div>
+          <div class="p-row"><div class="p-name">Google AIO</div><div class="p-track"><div class="p-fill f-gold" style="width:27%"></div></div><div class="p-num">47</div></div>
+          <div class="p-row"><div class="p-name">ChatGPT</div><div class="p-track"><div class="p-fill f-gold" style="width:19%; opacity:.65"></div></div><div class="p-num">34</div></div>
+          <div class="p-row"><div class="p-name">Perplexity</div><div class="p-track"><div class="p-fill f-grey" style="width:7%"></div></div><div class="p-num">12</div></div>
+          <div class="p-row"><div class="p-name">Copilot</div><div class="p-track"><div class="p-fill f-grey" style="width:4%"></div></div><div class="p-num">7</div></div>
+          <div class="p-row"><div class="p-name">Gemini</div><div class="p-track"><div class="p-fill f-red" style="width:0.5%"></div></div><div class="p-num" style="color:var(--red);font-weight:700;">0</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Share of total AI citations</h3>
+        <p class="csub">Combined 6,301 citations — all 7 competitors</p>
+        <div class="s-rows">
+          <div class="s-row"><div class="s-label">Savills</div><div class="s-track"><div class="s-fill" style="width:37%; background:var(--gold-dark);">37%</div></div></div>
+          <div class="s-row"><div class="s-label">Knight Frank</div><div class="s-track"><div class="s-fill" style="width:21%; background:var(--ink-2);">21%</div></div></div>
+          <div class="s-row"><div class="s-label">Foxtons</div><div class="s-track"><div class="s-fill" style="width:20%; background:var(--ink-3);">20%</div></div></div>
+          <div class="s-row"><div class="s-label">Hamptons</div><div class="s-track"><div class="s-fill" style="width:14%; background:var(--ink-3); font-size:10px;">14%</div></div></div>
+          <div class="s-row"><div class="s-label">KFH</div><div class="s-track"><div class="s-fill" style="width:5%; background:var(--ink-4); font-size:10px;">5%</div></div></div>
+          <div class="s-row"><div class="s-label">Dexters</div><div class="s-track"><div class="s-fill" style="width:3%; background:var(--ink-4); font-size:10px; padding-left:4px;">3%</div></div></div>
+          <div class="s-row"><div class="s-label wl">Winkworth</div><div class="s-track"><div class="s-fill" style="width:3%; background:var(--navy); font-size:10px; padding-left:4px;">3%</div></div></div>
+        </div>
+        <p style="margin-top:18px; font-size:13px; color:var(--ink-3); font-weight:300; line-height:1.65;">Winkworth holds just <strong style="color:var(--navy); font-weight:700;">3%</strong> of total AI citations — below Dexters, a single-city agent. Savills alone captures 37%, underlining the scale of the authority gap to close.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 PLATFORM STANDING -->
+  <section>
+    <p class="section-label">04 — Platform-by-platform standing</p>
+    <div class="pp-grid">
+      <div class="pp-cell">
+        <div class="pp-plat">Google AI Overview</div>
+        <div class="pp-num">47</div>
+        <div class="pp-rank"><strong>7th of 7</strong> — Savills leads at 684</div>
+        <div class="pp-note">Winkworth captures just 3% of Google AIO citations. Schema markup, FAQ structured content, and E-E-A-T signals are the primary levers to pull.</div>
+      </div>
+      <div class="pp-cell">
+        <div class="pp-plat">ChatGPT</div>
+        <div class="pp-num">34</div>
+        <div class="pp-rank"><strong>7th of 7</strong> — Hamptons leads at 279</div>
+        <div class="pp-note">Low ChatGPT citations reflect thin Wikipedia presence and limited authoritative third-party brand mentions in LLM training corpora.</div>
+      </div>
+      <div class="pp-cell">
+        <div class="pp-plat">Perplexity</div>
+        <div class="pp-num">12</div>
+        <div class="pp-rank"><strong>7th of 7</strong> — Foxtons leads at 303</div>
+        <div class="pp-note">Perplexity draws from live web indexing. Improving structured content and FAQ coverage will have a fast, measurable impact here.</div>
+      </div>
+      <div class="pp-cell pp-danger">
+        <div class="pp-plat">Gemini</div>
+        <div class="pp-num">0</div>
+        <div class="pp-rank">Not cited — Savills at 235</div>
+        <div class="pp-note">Zero Gemini citations is the single most urgent issue. Google's AI not surfacing Winkworth at all signals critical E-E-A-T and trust signal gaps.</div>
+      </div>
+      <div class="pp-cell">
+        <div class="pp-plat">Copilot</div>
+        <div class="pp-num">7</div>
+        <div class="pp-rank"><strong>7th of 7</strong> — Savills leads at 126</div>
+        <div class="pp-note">Copilot draws from the Bing index. Improving Bing Search presence and completing Bing Places listings will lift Copilot citations directly.</div>
+      </div>
+      <div class="pp-cell pp-bright">
+        <div class="pp-plat">Grok</div>
+        <div class="pp-num">75</div>
+        <div class="pp-rank">5th of 7 — Best relative platform</div>
+        <div class="pp-note">Winkworth's best relative performance. X/Twitter signals likely driving this. A clear quick win — social amplification can accelerate Grok citations rapidly.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 INSIGHTS -->
+  <section>
+    <p class="section-label">05 — Key insights</p>
+    <div class="insights">
+      <div class="ins-row">
+        <div class="ins-n">01</div>
+        <div class="ins-t"><strong>Winkworth holds only 3% of total AI citations despite operating 100+ offices nationally.</strong> Both Dexters and KFH — smaller, more localised agents — outperform Winkworth on AI visibility, making this a structural content and authority issue, not a brand size issue.</div>
+      </div>
+      <div class="ins-row">
+        <div class="ins-n">02</div>
+        <div class="ins-t"><strong>Gemini zero-citation is the single most urgent priority.</strong> Google's own AI returning zero results for Winkworth points to fundamental E-E-A-T gaps that simultaneously suppress Google AI Overview performance and organic rankings. Savills leads Gemini with 235 citations.</div>
+      </div>
+      <div class="ins-row ins-warn">
+        <div class="ins-n">03</div>
+        <div class="ins-t"><strong>Savills' dominance (2,347 citations, 37% share) sets the bar for what GEO-mature content achieves.</strong> Their strength in Google AIO (684) and Grok (1.1K) points to a combination of deep structured data, authoritative press coverage, and a strong social/X presence — all directly replicable for Winkworth.</div>
+      </div>
+      <div class="ins-row ins-good">
+        <div class="ins-n">04</div>
+        <div class="ins-t"><strong>Grok is Winkworth's relative bright spot and fastest available quick win.</strong> At 75 citations, Winkworth ranks 5th of 7 on Grok — the only platform where it escapes last place. Amplifying content through X/Twitter and social channels can compound this advantage rapidly while other optimisations take effect.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 RECS -->
+  <section>
+    <p class="section-label">06 — Recommended actions</p>
+    <div class="rec-grid">
+      <div class="rec-card rc-p1">
+        <div class="rec-pri">P1 — Immediate</div>
+        <div class="rec-title">Deploy structured data across all key pages</div>
+        <div class="rec-desc">Implement Organization, LocalBusiness, FAQPage, and RealEstateListing schema on winkworth.co.uk. This directly feeds Google AI Overview and Gemini and is the highest-ROI technical GEO action available immediately.</div>
+      </div>
+      <div class="rec-card rc-p1">
+        <div class="rec-pri">P1 — Immediate</div>
+        <div class="rec-title">Establish and expand Wikipedia &amp; Wikidata presence</div>
+        <div class="rec-desc">LLMs heavily weight Wikipedia as a training source. A comprehensive, factual Wikipedia entry will lift ChatGPT, Gemini, and Perplexity citations substantially. Savills' and Knight Frank's strong LLM presence correlates directly with robust Wikipedia entries.</div>
+      </div>
+      <div class="rec-card rc-p1">
+        <div class="rec-pri">P1 — Immediate</div>
+        <div class="rec-title">Resolve Gemini zero-citation root cause</div>
+        <div class="rec-desc">Audit E-E-A-T signals in full: author credentials on key pages, Google Business Profile completeness, and press coverage volume. Zero Gemini citations indicate trust signal deficiencies requiring immediate technical and content diagnosis.</div>
+      </div>
+      <div class="rec-card rc-p2">
+        <div class="rec-pri">P2 — 30 days</div>
+        <div class="rec-title">Publish AI-optimised FAQ &amp; editorial content</div>
+        <div class="rec-desc">Create long-form, question-led content targeting the prompt battery categories. Structure answers in 40–60 word paragraphs that AI systems can confidently extract and cite in responses. Target Perplexity first for fastest impact.</div>
+      </div>
+      <div class="rec-card rc-p2">
+        <div class="rec-pri">P2 — 30 days</div>
+        <div class="rec-title">Configure GA4 AI referrer tracking</div>
+        <div class="rec-desc">Set up a custom channel group for AI traffic sources in GA4 (ChatGPT, Perplexity, Bing AI, Gemini referrals). Establish the measurement baseline now so that citation improvements can be correlated with traffic and lead volume gains.</div>
+      </div>
+      <div class="rec-card rc-p3">
+        <div class="rec-pri">P3 — 60 days</div>
+        <div class="rec-title">Build press &amp; brand mention authority</div>
+        <div class="rec-desc">Increase coverage in Estates Gazette, Property Week, Evening Standard, and BBC News. Third-party brand mentions are a primary LLM training signal. Savills' category leadership correlates strongly with volume of authoritative press citations.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 GA4 AI TRAFFIC ANALYSIS -->
+  <section>
+    <p class="section-label">07 — GA4 AI traffic analysis — Apr 1–30, 2026</p>
+
+    <!-- Key insight banner -->
+    <div style="background:var(--amber-light); border-left:3px solid var(--amber); border-radius:2px; padding:16px 20px; margin-bottom:20px; display:flex; align-items:flex-start; gap:14px;">
+      <div style="font-size:20px; color:var(--amber);">◉</div>
+      <div>
+        <div style="font-size:14px; font-weight:600; color:var(--ink); margin-bottom:4px;">GA4 confirms real AI-driven traffic — but competitors are winning more</div>
+        <div style="font-size:13px; color:var(--ink-3); line-height:1.65;">Winkworth received <strong style="color:var(--ink)">1,380 AI-referred sessions</strong> in April 2026 — proof the channel is live and growing. However, with only 7th-place AI citation rankings (Ahrefs), competitors are capturing significantly more AI-driven traffic. ChatGPT alone accounts for <strong style="color:var(--ink)">91.3%</strong> of all AI sessions, making it the priority optimisation target.</div>
+      </div>
+    </div>
+
+    <!-- KPI strip -->
+    <div style="display:grid; grid-template-columns:repeat(5,1fr); border:1px solid var(--border); border-radius:2px; overflow:hidden; margin-bottom:20px;">
+
+      <div style="padding:18px 16px; background:var(--navy); position:relative;">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.38); margin-bottom:8px;">Total AI sessions</div>
+        <div style="font-family:'DM Serif Display',serif; font-size:32px; color:var(--gold); line-height:1; margin-bottom:4px;">1,380</div>
+        <div style="font-size:11px; color:rgba(255,255,255,0.45);">Apr 1–30, 2026</div>
+      </div>
+
+      <div style="padding:18px 16px; background:var(--white); border-right:1px solid var(--border);">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-4); margin-bottom:8px;">Engaged sessions</div>
+        <div style="font-family:'DM Serif Display',serif; font-size:32px; color:var(--ink); line-height:1; margin-bottom:4px;">834</div>
+        <div style="font-size:11px; color:var(--ink-3);">60.43% engagement rate</div>
+      </div>
+
+      <div style="padding:18px 16px; background:var(--white); border-right:1px solid var(--border);">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-4); margin-bottom:8px;">Avg engagement time</div>
+        <div style="font-family:'DM Serif Display',serif; font-size:32px; color:var(--ink); line-height:1; margin-bottom:4px;">1m 08s</div>
+        <div style="font-size:11px; color:var(--ink-3);">Across all AI sources</div>
+      </div>
+
+      <div style="padding:18px 16px; background:var(--white); border-right:1px solid var(--border);">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-4); margin-bottom:8px;">Top AI source</div>
+        <div style="font-family:'DM Serif Display',serif; font-size:22px; color:var(--ink); line-height:1.2; margin-bottom:4px;">ChatGPT</div>
+        <div style="font-size:11px; color:var(--ink-3);">1,261 sessions · 91.3% share</div>
+      </div>
+
+      <div style="padding:18px 16px; background:var(--green-light); border-right:1px solid var(--border);">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--green); margin-bottom:8px;">Best engagement</div>
+        <div style="font-family:'DM Serif Display',serif; font-size:22px; color:var(--green); line-height:1.2; margin-bottom:4px;">Copilot</div>
+        <div style="font-size:11px; color:var(--green);">2m 39s avg · 66.67%</div>
+      </div>
+
+    </div>
+
+    <!-- Source breakdown table -->
+    <div style="border:1px solid var(--border); border-radius:2px; overflow:hidden; margin-bottom:20px;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:var(--navy); border-bottom:3px solid var(--gold);">
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.44); padding:13px 16px; text-align:left; font-weight:400;">#</th>
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.72); padding:13px 16px; text-align:left; font-weight:400;">AI source / medium</th>
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.44); padding:13px 16px; text-align:right; font-weight:400;">Sessions</th>
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.44); padding:13px 16px; text-align:right; font-weight:400;">Engaged</th>
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.44); padding:13px 16px; text-align:right; font-weight:400;">Eng. rate</th>
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.44); padding:13px 16px; text-align:right; font-weight:400;">Avg time</th>
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.44); padding:13px 16px; text-align:right; font-weight:400;">Events/session</th>
+            <th style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,0.44); padding:13px 16px; text-align:right; font-weight:400;">Share</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- Row helper: colour-coded AI source labels -->
+          <tr style="border-bottom:1px solid var(--border); background:var(--white);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">1</td>
+            <td style="padding:12px 16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10a37f; flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:500; color:var(--ink);">chatgpt.com / (not set)</span>
+                <span style="font-size:10px; background:var(--amber-light); color:var(--amber); padding:2px 7px; border-radius:2px; font-family:'DM Mono',monospace;">Direct AI</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                <div style="width:80px; height:4px; background:var(--surface); border-radius:2px; overflow:hidden;"><div style="width:100%; height:100%; background:#10a37f; border-radius:2px;"></div></div>
+                <span style="font-family:'DM Mono',monospace; font-size:13px;">780</span>
+              </div>
+              <div style="font-size:11px; color:var(--ink-3); text-align:right;">56.52%</div>
+            </td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px;">454<div style="font-size:11px; color:var(--ink-3);">54.44%</div></td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">58.21%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">56s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">7.89</td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="width:90px; height:6px; background:var(--surface); border-radius:2px; overflow:hidden; margin-left:auto;"><div style="width:57%; height:100%; background:#10a37f; border-radius:2px; opacity:.7;"></div></div>
+              <span style="font-size:11px; color:var(--ink-3);">56.5%</span>
+            </td>
+          </tr>
+
+          <tr style="border-bottom:1px solid var(--border); background:var(--white);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">2</td>
+            <td style="padding:12px 16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10a37f; flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:500; color:var(--ink);">chatgpt.com / referral</span>
+                <span style="font-size:10px; background:var(--green-light); color:var(--green); padding:2px 7px; border-radius:2px; font-family:'DM Mono',monospace;">Referral</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                <div style="width:80px; height:4px; background:var(--surface); border-radius:2px; overflow:hidden;"><div style="width:62%; height:100%; background:#10a37f; border-radius:2px;"></div></div>
+                <span style="font-family:'DM Mono',monospace; font-size:13px;">480</span>
+              </div>
+              <div style="font-size:11px; color:var(--ink-3); text-align:right;">34.78%</div>
+            </td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px;">307<div style="font-size:11px; color:var(--ink-3);">36.81%</div></td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">63.96%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">1m 24s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">8.54</td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="width:90px; height:6px; background:var(--surface); border-radius:2px; overflow:hidden; margin-left:auto;"><div style="width:35%; height:100%; background:#10a37f; border-radius:2px; opacity:.7;"></div></div>
+              <span style="font-size:11px; color:var(--ink-3);">34.8%</span>
+            </td>
+          </tr>
+
+          <tr style="border-bottom:1px solid var(--border); background:var(--navy-light);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">3</td>
+            <td style="padding:12px 16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--navy); flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:600; color:var(--navy);">claude.ai / referral</span>
+                <span style="font-size:10px; background:var(--navy-light); color:var(--navy); padding:2px 7px; border-radius:2px; font-family:'DM Mono',monospace;">Claude</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                <div style="width:80px; height:4px; background:var(--surface); border-radius:2px; overflow:hidden;"><div style="width:9%; height:100%; background:var(--navy); border-radius:2px;"></div></div>
+                <span style="font-family:'DM Mono',monospace; font-size:13px;">73</span>
+              </div>
+              <div style="font-size:11px; color:var(--ink-3); text-align:right;">5.29%</div>
+            </td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px;">50<div style="font-size:11px; color:var(--ink-3);">6%</div></td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--green); font-weight:500;">68.49%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">1m 32s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">9.19</td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="width:90px; height:6px; background:var(--surface); border-radius:2px; overflow:hidden; margin-left:auto;"><div style="width:5%; height:100%; background:var(--navy); border-radius:2px; opacity:.7;"></div></div>
+              <span style="font-size:11px; color:var(--ink-3);">5.3%</span>
+            </td>
+          </tr>
+
+          <tr style="border-bottom:1px solid var(--border); background:var(--white);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">4</td>
+            <td style="padding:12px 16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#4285F4; flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:500; color:var(--ink);">gemini.google.com / referral</span>
+                <span style="font-size:10px; background:var(--red-light); color:var(--red); padding:2px 7px; border-radius:2px; font-family:'DM Mono',monospace;">0 citations!</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                <div style="width:80px; height:4px; background:var(--surface); border-radius:2px; overflow:hidden;"><div style="width:2%; height:100%; background:#4285F4; border-radius:2px;"></div></div>
+                <span style="font-family:'DM Mono',monospace; font-size:13px;">15</span>
+              </div>
+              <div style="font-size:11px; color:var(--ink-3); text-align:right;">1.09%</div>
+            </td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px;">7<div style="font-size:11px; color:var(--ink-3);">0.84%</div></td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">46.67%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">44s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">6.33</td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="width:90px; height:6px; background:var(--surface); border-radius:2px; overflow:hidden; margin-left:auto;"><div style="width:1%; height:100%; background:#4285F4; border-radius:2px; opacity:.7;"></div></div>
+              <span style="font-size:11px; color:var(--ink-3);">1.1%</span>
+            </td>
+          </tr>
+
+          <tr style="border-bottom:1px solid var(--border); background:var(--white);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">5</td>
+            <td style="padding:12px 16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#6C5CE7; flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:500; color:var(--ink);">perplexity / (not set)</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                <div style="width:80px; height:4px; background:var(--surface); border-radius:2px; overflow:hidden;"><div style="width:2%; height:100%; background:#6C5CE7; border-radius:2px;"></div></div>
+                <span style="font-family:'DM Mono',monospace; font-size:13px;">14</span>
+              </div>
+              <div style="font-size:11px; color:var(--ink-3); text-align:right;">1.01%</div>
+            </td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px;">7<div style="font-size:11px; color:var(--ink-3);">0.84%</div></td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">50%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">46s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">5.86</td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="width:90px; height:6px; background:var(--surface); border-radius:2px; overflow:hidden; margin-left:auto;"><div style="width:1%; height:100%; background:#6C5CE7; border-radius:2px; opacity:.7;"></div></div>
+              <span style="font-size:11px; color:var(--ink-3);">1.0%</span>
+            </td>
+          </tr>
+
+          <tr style="border-bottom:1px solid var(--border); background:var(--white);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">6</td>
+            <td style="padding:12px 16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#6C5CE7; flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:500; color:var(--ink);">perplexity.ai / referral</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                <div style="width:80px; height:4px; background:var(--surface); border-radius:2px; overflow:hidden;"><div style="width:1.5%; height:100%; background:#6C5CE7; border-radius:2px;"></div></div>
+                <span style="font-family:'DM Mono',monospace; font-size:13px;">12</span>
+              </div>
+              <div style="font-size:11px; color:var(--ink-3); text-align:right;">0.87%</div>
+            </td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px;">5<div style="font-size:11px; color:var(--ink-3);">0.6%</div></td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">41.67%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">36s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px;">8.83</td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="width:90px; height:6px; background:var(--surface); border-radius:2px; overflow:hidden; margin-left:auto;"><div style="width:1%; height:100%; background:#6C5CE7; border-radius:2px; opacity:.7;"></div></div>
+              <span style="font-size:11px; color:var(--ink-3);">0.9%</span>
+            </td>
+          </tr>
+
+          <tr style="border-bottom:1px solid var(--border); background:var(--green-light);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--green);">7</td>
+            <td style="padding:12px 16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#0078D4; flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:600; color:var(--green);">copilot.microsoft.com / referral</span>
+                <span style="font-size:10px; background:var(--green-light); color:var(--green); padding:2px 7px; border-radius:2px; font-family:'DM Mono',monospace;">Best quality</span>
+              </div>
+            </td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                <div style="width:80px; height:4px; background:var(--surface); border-radius:2px; overflow:hidden;"><div style="width:1%; height:100%; background:#0078D4; border-radius:2px;"></div></div>
+                <span style="font-family:'DM Mono',monospace; font-size:13px;">6</span>
+              </div>
+              <div style="font-size:11px; color:var(--green); text-align:right;">0.43%</div>
+            </td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px; color:var(--green);">4<div style="font-size:11px;">0.48%</div></td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--green); font-weight:600;">66.67%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--green); font-weight:600;">2m 39s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--green); font-weight:600;">13.67</td>
+            <td style="padding:12px 16px; text-align:right;">
+              <div style="width:90px; height:6px; background:var(--surface); border-radius:2px; overflow:hidden; margin-left:auto;"><div style="width:0.5%; height:100%; background:#0078D4; border-radius:2px; opacity:.7;"></div></div>
+              <span style="font-size:11px; color:var(--green);">0.4%</span>
+            </td>
+          </tr>
+
+          <tr style="background:var(--white);">
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">8</td>
+            <td style="padding:12px 16px; font-size:13px; color:var(--ink-3);">chatgpt.com / (none)</td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px; color:var(--ink-3);">1</td>
+            <td style="padding:12px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:13px; color:var(--ink-3);">1</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--ink-3);">100%</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--ink-3);">1m 18s</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--ink-3);">13.00</td>
+            <td style="padding:12px 16px; text-align:right; font-size:13px; color:var(--ink-3);">0.1%</td>
+          </tr>
+
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--navy-light); border-top:2px solid var(--navy);">
+            <td colspan="2" style="padding:13px 16px; font-weight:700; font-size:14px; color:var(--navy);">Total</td>
+            <td style="padding:13px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:14px; font-weight:700; color:var(--navy);">1,380</td>
+            <td style="padding:13px 16px; text-align:right; font-family:'DM Mono',monospace; font-size:14px; font-weight:700; color:var(--navy);">834</td>
+            <td style="padding:13px 16px; text-align:right; font-size:14px; font-weight:600; color:var(--navy);">60.43%</td>
+            <td style="padding:13px 16px; text-align:right; font-size:14px; font-weight:600; color:var(--navy);">1m 08s</td>
+            <td style="padding:13px 16px; text-align:right; font-size:14px; font-weight:600; color:var(--navy);">8.19</td>
+            <td style="padding:13px 16px; text-align:right; font-size:14px; font-weight:600; color:var(--navy);">100%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- GA4 insight cards -->
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
+
+      <div style="background:var(--white); border:1px solid var(--border); border-radius:2px; padding:20px; border-top:3px solid #10a37f;">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#10a37f; margin-bottom:10px;">ChatGPT dominance</div>
+        <div style="font-size:14px; font-weight:600; color:var(--ink); margin-bottom:8px; line-height:1.4;">91.3% of AI traffic from ChatGPT</div>
+        <div style="font-size:13px; color:var(--ink-3); font-weight:300; line-height:1.65;">1,261 of 1,380 sessions originate from chatgpt.com across two mediums. Optimising for ChatGPT citations is the single highest-leverage GA4 action — each citation improvement directly scales the largest traffic channel.</div>
+      </div>
+
+      <div style="background:var(--white); border:1px solid var(--border); border-radius:2px; padding:20px; border-top:3px solid var(--red);">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--red); margin-bottom:10px;">Gemini paradox</div>
+        <div style="font-size:14px; font-weight:600; color:var(--ink); margin-bottom:8px; line-height:1.4;">15 sessions despite 0 Ahrefs citations</div>
+        <div style="font-size:13px; color:var(--ink-3); font-weight:300; line-height:1.65;">Gemini sends 15 sessions (rank #4) even though Ahrefs records zero Gemini citations. This gap — between measured citations and actual referral traffic — means Gemini's potential is larger than the citation count suggests. Resolving E-E-A-T gaps here will unlock significant hidden traffic.</div>
+      </div>
+
+      <div style="background:var(--green-light); border:1px solid var(--border); border-radius:2px; padding:20px; border-top:3px solid var(--green);">
+        <div style="font-family:'DM Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--green); margin-bottom:10px;">Quality signal</div>
+        <div style="font-size:14px; font-weight:600; color:var(--green); margin-bottom:8px; line-height:1.4;">Copilot sends highest-quality visitors</div>
+        <div style="font-size:13px; color:var(--green); font-weight:300; line-height:1.65; opacity:.85;">Despite only 6 sessions, Copilot visitors spend 2m 39s on site, generate 13.67 events/session, and engage at 66.67% — the best metrics of any AI source. Increasing Bing/Copilot citations is a high-quality traffic multiplier worth prioritising.</div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer class="report-footer">
+  <div><span class="f-brand">Winkworth Franchising Ltd</span><span class="f-div">·</span>AI Visibility Baseline Report</div>
+  <div>Confidential<span class="f-div">·</span>Q2 2025</div>
+  <div>Next review: Monthly prompt audit cycle</div>
+</footer>
+
+</body>
+</html>
